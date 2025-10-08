@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Generate filename with timestamp
+filename="Screenshot-$(date +%Y-%m-%d-%H-%M-%S).png"
+filepath="$HOME/Pictures/Screenshots/$filename"
+
+# Take screenshot (interactive selection)
+screencapture -i "$filepath"
+
+# Check if screenshot was actually taken (user might have cancelled)
+if [ -f "$filepath" ]; then
+    # Copy file to clipboard (for pasting in terminal)
+    osascript -e "set the clipboard to POSIX file \"$filepath\""
+    echo "Screenshot saved and copied: $filename"
+else
+    echo "Screenshot cancelled"
+fi

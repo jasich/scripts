@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Check if we're in a git repo
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not in a git repository"
+    exit 1
+fi
+
+# Check if message was provided
+if [ -z "$1" ]; then
+    echo "Usage: rando \"your idea message\""
+    exit 1
+fi
+
+MESSAGE="$1"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BRANCH_NAME="rando_${TIMESTAMP}"
+WORKTREE_DIR="../rando_worktrees/${BRANCH_NAME}"
+
+# Get the current repo's absolute path for node_modules reference
+CURRENT_DIR=$(pwd)
+
+# Create the worktree directory if it doesn't exist
+mkdir -p "$(dirname "$WORKTREE_DIR")"
+
+# Create a new branch and worktree
+echo "Creating worktree at: $WORKTREE_DIR"
+git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"
+
+# Get absolute path for the worktree
+ABSOLUTE_WORKTREE_DIR=$(cd "$WORKTREE_DIR" && pwd)
+
+# Symlink node_modules from the original repo
+if [ -d "$CURRENT_DIR/node_modules" ]; then
+    echo "Symlinking node_modules..."
+    ln -s "$CURRENT_DIR/node_modules" "$ABSOLUTE_WORKTREE_DIR/node_modules"
+else
+    echo "⚠️  Warning: node_modules not found in current directory"
+fi
+
+# Define the finisher agent
+AGENT_JSON='{
+  "finisher": {
+    "description": "Finalizes work by committing changes, pushing to remote, and creating a draft PR",
+    "prompt": "You are responsible for completing the workflow after implementing changes. When the user asks you to finish or when work is complete: 1) Stage and commit all changes with a descriptive commit message summarizing what was done, 2) Push the branch to origin, 3) Use the GitHub CLI (gh pr create) to create a draft pull request with a clear title and description of the changes made. Always create draft PRs so they can be reviewed before merging."
+  }
+}'
+
+# Launch Claude Code in a new Ghostty window with no permission prompts
+echo "Launching Claude Code in new Ghostty window..."
+FULL_MESSAGE="$MESSAGE. When you're done, ask the finisher agent to commit, push, and create a draft PR."
+open -n "/Applications/Ghostty.app" --args --working-directory="$ABSOLUTE_WORKTREE_DIR" -e claude --dangerously-skip-permissions --agents "$AGENT_JSON" "$FULL_MESSAGE"
+
+echo ""
+echo "✨ Claude Code is working on your idea (no permission prompts)!"
+echo "📁 Location: $ABSOLUTE_WORKTREE_DIR"
+echo "🌿 Branch: $BRANCH_NAME"
+echo "📦 node_modules: symlinked from main repo"
+echo ""
+echo "Check progress with: cd $ABSOLUTE_WORKTREE_DIR"

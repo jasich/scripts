@@ -1,0 +1,24 @@
+#!/bin/bash
+
+echo "Existing rando worktrees:"
+git worktree list | grep "rando_"
+
+echo ""
+read -p "Enter branch name to remove (or 'all' to remove all rando worktrees): " BRANCH
+
+if [ "$BRANCH" = "all" ]; then
+    git worktree list --porcelain | grep "worktree.*rando_" | sed 's/worktree //' | while read -r path; do
+        echo "Removing: $path"
+        git worktree remove "$path" --force
+    done
+    git branch | grep "rando_" | xargs git branch -D
+else
+    WORKTREE_PATH=$(git worktree list --porcelain | grep -A 1 "$BRANCH" | grep "worktree" | sed 's/worktree //')
+    if [ -n "$WORKTREE_PATH" ]; then
+        git worktree remove "$WORKTREE_PATH" --force
+        git branch -D "$BRANCH"
+        echo "Removed: $BRANCH"
+    else
+        echo "Branch not found: $BRANCH"
+    fi
+fi
