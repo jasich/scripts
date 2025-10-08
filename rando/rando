@@ -6,9 +6,20 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Parse flags
+USE_MASTER=false
+while getopts "m" opt; do
+    case $opt in
+        m) USE_MASTER=true ;;
+        *) echo "Usage: rando [-m] \"your idea message\""; exit 1 ;;
+    esac
+done
+shift $((OPTIND-1))
+
 # Check if message was provided
 if [ -z "$1" ]; then
-    echo "Usage: rando \"your idea message\""
+    echo "Usage: rando [-m] \"your idea message\""
+    echo "  -m: Create worktree from master branch instead of current branch"
     exit 1
 fi
 
@@ -24,8 +35,13 @@ CURRENT_DIR=$(pwd)
 mkdir -p "$(dirname "$WORKTREE_DIR")"
 
 # Create a new branch and worktree
-echo "Creating worktree at: $WORKTREE_DIR"
-git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"
+if [ "$USE_MASTER" = true ]; then
+    echo "Creating worktree from master at: $WORKTREE_DIR"
+    git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" master
+else
+    echo "Creating worktree from current branch at: $WORKTREE_DIR"
+    git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"
+fi
 
 # Get absolute path for the worktree
 ABSOLUTE_WORKTREE_DIR=$(cd "$WORKTREE_DIR" && pwd)
