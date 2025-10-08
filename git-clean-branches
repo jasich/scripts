@@ -1,0 +1,30 @@
+#!/bin/bash
+# Clean up local Git branches that have been merged or deleted upstream
+
+set -e
+
+echo "🧹 Cleaning up merged branches..."
+echo
+
+# Update master
+echo "📥 Updating master..."
+git checkout master
+git pull
+echo
+
+# Delete branches merged into master
+echo "🗑️  Deleting branches merged into master..."
+git branch --merged master | grep -v "^\* master" | xargs -n 1 git branch -d 2>/dev/null || echo "No merged branches to delete"
+echo
+
+# Clean up remote references
+echo "🔄 Pruning remote references..."
+git fetch --prune
+echo
+
+# Delete branches whose remote was deleted (squashed/rebased PRs)
+echo "🗑️  Deleting branches with deleted remotes..."
+git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -n 1 git branch -D 2>/dev/null || echo "No orphaned branches to delete"
+echo
+
+echo "✅ Done!"
