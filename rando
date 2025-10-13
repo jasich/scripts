@@ -37,21 +37,32 @@ mkdir -p "$(dirname "$WORKTREE_DIR")"
 # Create a new branch and worktree
 if [ "$USE_MASTER" = true ]; then
     echo "Creating worktree from master at: $WORKTREE_DIR"
-    git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" master
+    git worktree add "$WORKTREE_DIR" -b "$BRANCH_NAME" master
 else
     echo "Creating worktree from current branch at: $WORKTREE_DIR"
-    git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"
+    git worktree add "$WORKTREE_DIR" -b "$BRANCH_NAME"
 fi
 
 # Get absolute path for the worktree
 ABSOLUTE_WORKTREE_DIR=$(cd "$WORKTREE_DIR" && pwd)
 
-# Symlink node_modules from the original repo
-if [ -d "$CURRENT_DIR/node_modules" ]; then
-    echo "Symlinking node_modules..."
-    ln -s "$CURRENT_DIR/node_modules" "$ABSOLUTE_WORKTREE_DIR/node_modules"
-else
-    echo "⚠️  Warning: node_modules not found in current directory"
+# Symlink files/directories based on .rando config
+if [ -f "$CURRENT_DIR/.rando" ]; then
+    echo "Reading .rando config for symlinks..."
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Trim whitespace
+        line=$(echo "$line" | xargs)
+
+        if [ -e "$CURRENT_DIR/$line" ]; then
+            echo "Symlinking $line..."
+            ln -s "$CURRENT_DIR/$line" "$ABSOLUTE_WORKTREE_DIR/$line"
+        else
+            echo "⚠️  Warning: $line not found, skipping"
+        fi
+    done < "$CURRENT_DIR/.rando"
 fi
 
 # Define the finisher agent
@@ -71,6 +82,6 @@ echo ""
 echo "✨ Claude Code is working on your idea (no permission prompts)!"
 echo "📁 Location: $ABSOLUTE_WORKTREE_DIR"
 echo "🌿 Branch: $BRANCH_NAME"
-echo "📦 node_modules: symlinked from main repo"
+echo "📦 Symlinks: configured via .rando file (if present)"
 echo ""
 echo "Check progress with: cd $ABSOLUTE_WORKTREE_DIR"
